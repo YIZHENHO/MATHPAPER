@@ -1,0 +1,272 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Printer, RefreshCw, Settings, CheckCircle2, ChevronRight, Hash } from 'lucide-react';
+
+const App = () => {
+  // 狀態設定
+  const [config, setConfig] = useState({
+    minNum: 1,
+    maxNum: 20,
+    operations: ['+'],
+    problemsPerPage: 20,
+    sheetCount: 1,
+    showAnswers: true,
+    title: "長輩大腦活化練習"
+  });
+
+  const [sheets, setSheets] = useState([]);
+
+  // 產生題目邏輯
+  const generateProblems = () => {
+    const newSheets = [];
+    
+    for (let s = 0; s < config.sheetCount; s++) {
+      const problems = [];
+      for (let i = 0; i < config.problemsPerPage; i++) {
+        let op = config.operations[Math.floor(Math.random() * config.operations.length)];
+        let n1, n2, ans;
+
+        if (op === '+') {
+          n1 = Math.floor(Math.random() * (config.maxNum - config.minNum + 1)) + config.minNum;
+          n2 = Math.floor(Math.random() * (config.maxNum - config.minNum + 1)) + config.minNum;
+          ans = n1 + n2;
+        } else if (op === '-') {
+          n1 = Math.floor(Math.random() * (config.maxNum - config.minNum + 1)) + config.minNum;
+          n2 = Math.floor(Math.random() * (n1 - config.minNum + 1)) + config.minNum; // 確保不出現負數
+          ans = n1 - n2;
+        } else if (op === '×') {
+          // 乘法通常範圍較小，避免太挫折
+          const multMax = Math.min(config.maxNum, 12);
+          n1 = Math.floor(Math.random() * (multMax - 2 + 1)) + 2;
+          n2 = Math.floor(Math.random() * (multMax - 2 + 1)) + 2;
+          ans = n1 * n2;
+        } else if (op === '÷') {
+          // 確保整除
+          n2 = Math.floor(Math.random() * (Math.min(config.maxNum, 10) - 2 + 1)) + 2;
+          ans = Math.floor(Math.random() * (Math.min(config.maxNum, 10) - 2 + 1)) + 2;
+          n1 = n2 * ans;
+        }
+
+        problems.push({ n1, n2, op, ans, id: i });
+      }
+      newSheets.push({ id: s, problems, date: new Date().toLocaleDateString() });
+    }
+    setSheets(newSheets);
+  };
+
+  // 初始化產生
+  useEffect(() => {
+    generateProblems();
+  }, []);
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const toggleOp = (op) => {
+    const newOps = config.operations.includes(op)
+      ? config.operations.filter(o => o !== op)
+      : [...config.operations, op];
+    if (newOps.length > 0) setConfig({ ...config, operations: newOps });
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row font-sans">
+      {/* 側邊設定欄 - 列印時隱藏 */}
+      <div className="w-full md:w-80 bg-white shadow-xl p-6 z-10 print:hidden overflow-y-auto max-h-screen sticky top-0">
+        <div className="flex items-center gap-2 mb-6">
+          <Settings className="text-blue-600" />
+          <h1 className="text-2xl font-bold text-gray-800">產生器設定</h1>
+        </div>
+
+        <div className="space-y-6">
+          {/* 標題 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">練習卷標題</label>
+            <input 
+              type="text" 
+              className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500"
+              value={config.title}
+              onChange={(e) => setConfig({...config, title: e.target.value})}
+            />
+          </div>
+
+          {/* 難度：數字範圍 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">數字範圍 (最小 ~ 最大)</label>
+            <div className="flex items-center gap-2">
+              <input 
+                type="number" 
+                className="w-1/2 border rounded-lg p-2"
+                value={config.minNum}
+                onChange={(e) => setConfig({...config, minNum: parseInt(e.target.value) || 0})}
+              />
+              <span>~</span>
+              <input 
+                type="number" 
+                className="w-1/2 border rounded-lg p-2"
+                value={config.maxNum}
+                onChange={(e) => setConfig({...config, maxNum: parseInt(e.target.value) || 0})}
+              />
+            </div>
+          </div>
+
+          {/* 運算符號 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">包含運算</label>
+            <div className="flex gap-2">
+              {['+', '-', '×', '÷'].map(op => (
+                <button
+                  key={op}
+                  onClick={() => toggleOp(op)}
+                  className={`flex-1 py-2 rounded-lg font-bold border transition-colors ${
+                    config.operations.includes(op) 
+                    ? 'bg-blue-600 text-white border-blue-600' 
+                    : 'bg-white text-gray-600 border-gray-300'
+                  }`}
+                >
+                  {op}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 數量 */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">每頁題數</label>
+              <input 
+                type="number" 
+                className="w-full border rounded-lg p-2"
+                value={config.problemsPerPage}
+                onChange={(e) => setConfig({...config, problemsPerPage: parseInt(e.target.value) || 1})}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">產生份數</label>
+              <input 
+                type="number" 
+                className="w-full border rounded-lg p-2"
+                value={config.sheetCount}
+                onChange={(e) => setConfig({...config, sheetCount: parseInt(e.target.value) || 1})}
+              />
+            </div>
+          </div>
+
+          {/* 解答開關 */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input 
+              type="checkbox" 
+              className="w-5 h-5 text-blue-600 rounded"
+              checked={config.showAnswers}
+              onChange={(e) => setConfig({...config, showAnswers: e.target.checked})}
+            />
+            <span className="text-gray-700 font-medium">產生解答頁</span>
+          </label>
+
+          {/* 操作按鈕 */}
+          <div className="space-y-3 pt-4">
+            <button 
+              onClick={generateProblems}
+              className="w-full bg-blue-100 text-blue-700 hover:bg-blue-200 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all"
+            >
+              <RefreshCw size={20} /> 重新產生題目
+            </button>
+            <button 
+              onClick={handlePrint}
+              className="w-full bg-blue-600 text-white hover:bg-blue-700 font-bold py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all"
+            >
+              <Printer size={20} /> 列印 / 下載 PDF
+            </button>
+          </div>
+
+          <p className="text-xs text-gray-400 text-center mt-4 italic">
+            提示：列印時請選擇「另存為 PDF」即可下載。
+          </p>
+        </div>
+      </div>
+
+      {/* 預覽區域 */}
+      <div className="flex-1 p-4 md:p-10 overflow-y-auto bg-gray-200">
+        <div className="max-w-[210mm] mx-auto space-y-8">
+          {/* 練習頁 */}
+          {sheets.map((sheet, sIdx) => (
+            <div 
+              key={`sheet-${sheet.id}`} 
+              className="bg-white shadow-lg mx-auto p-[20mm] box-border print:shadow-none print:m-0 print:p-[15mm] sheet-page"
+              style={{ width: '210mm', minHeight: '297mm', pageBreakAfter: 'always' }}
+            >
+              {/* 頁首 */}
+              <div className="border-b-4 border-black pb-4 mb-8 flex justify-between items-end">
+                <div>
+                  <h2 className="text-4xl font-black mb-2">{config.title}</h2>
+                  <p className="text-gray-600">日期：________________  姓名：________________</p>
+                </div>
+                <div className="text-right text-sm text-gray-400">
+                  Sheet #{sheet.id + 1}
+                </div>
+              </div>
+
+              {/* 題目網格 */}
+              <div className="grid grid-cols-2 gap-y-10 gap-x-12">
+                {sheet.problems.map((p, pIdx) => (
+                  <div key={p.id} className="flex items-center text-3xl font-medium tracking-wider">
+                    <span className="w-10 text-xl text-gray-400 font-normal">({pIdx + 1})</span>
+                    <div className="flex items-center gap-4">
+                      <span className="w-12 text-right">{p.n1}</span>
+                      <span className="w-6 text-center">{p.op}</span>
+                      <span className="w-12 text-left">{p.n2}</span>
+                      <span className="mx-2">=</span>
+                      <div className="w-24 h-12 border-b-2 border-dashed border-gray-400"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* 頁腳 */}
+              <div className="mt-20 text-center text-gray-300 border-t pt-4 text-sm">
+                多活動大腦，保持身心健康
+              </div>
+            </div>
+          ))}
+
+          {/* 答案頁 */}
+          {config.showAnswers && sheets.map((sheet, sIdx) => (
+            <div 
+              key={`ans-${sheet.id}`} 
+              className="bg-white shadow-lg mx-auto p-[20mm] box-border print:shadow-none print:m-0 print:p-[15mm] sheet-page"
+              style={{ width: '210mm', minHeight: '297mm', pageBreakAfter: sIdx === sheets.length - 1 ? 'auto' : 'always' }}
+            >
+              <div className="border-b-2 border-gray-800 pb-2 mb-8">
+                <h2 className="text-2xl font-bold">解答頁 - {config.title} (Sheet #{sheet.id + 1})</h2>
+              </div>
+
+              <div className="grid grid-cols-4 gap-6">
+                {sheet.problems.map((p, pIdx) => (
+                  <div key={`ans-item-${p.id}`} className="border p-3 rounded text-xl flex justify-between bg-gray-50">
+                    <span className="text-gray-400 text-sm">({pIdx + 1})</span>
+                    <span className="font-bold text-blue-700">{p.ans}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <style>{`
+        @media print {
+          body { margin: 0; background: white; }
+          .sheet-page { margin: 0 !important; box-shadow: none !important; }
+          @page { size: A4; margin: 0; }
+        }
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default App;
